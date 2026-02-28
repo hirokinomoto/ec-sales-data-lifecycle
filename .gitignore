@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS / Editor
+.DS_Store
+.vscode/
+
+# Secrets
+.env
+
+# Data: 原則除外。ただし data/ の架空データだけ公開OK
+*.csv
+!data/*.csv
