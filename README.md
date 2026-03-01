@@ -101,6 +101,38 @@ flowchart TB
 
 ---
 
+## 再現手順（最短）
+
+このリポジトリは **BigQuery上でSQLを実行して再現**します（ローカル実行は不要）。
+
+### 1) データ取り込み（raw）
+1. BigQueryでデータセット `ec_sales` を作成
+2. `data/orders_raw.csv` をアップロードして `ec_sales.orders_raw` を作成  
+   - Source: Upload（CSV）
+   - Table: `orders_raw`
+   - Schema: Auto-detect
+
+### 2) #1 raw → staging（品質チェック / 整形 / 定義固定）
+以下の順でSQLを実行します（BigQuery Console）。
+
+- `sql/01_raw/01_raw_quality_check.sql`
+- `sql/01_raw/02_raw_duplicate_check.sql`
+- `sql/02_staging/01_create_orders_stg.sql`
+- `sql/02_staging/02_add_first_purchase_date.sql`
+- `sql/02_staging/03_add_customer_type.sql`
+
+**出力テーブル**
+- `ec_sales.orders_raw`（raw）
+- `ec_sales.orders_stg`（staging：is_valid_order / first_purchase_date / customer_type を保持）
+
+### 3) #2 mart（作成予定）
+`sql/03_mart/` に月次KPI・カテゴリ別KPIを追加予定。
+
+### 4) #3 BI（作成予定）
+Looker Studioで「分析できる状態」に整えるダッシュボードを追加予定。
+
+---
+
 ## 補足
 
 - `data/` 配下のデータは **架空データ** です。
