@@ -53,6 +53,8 @@ flowchart TB
 
 #### stagingの固定定義（抜粋）
 
+> 実行結果サマリ：raw 213行 → staging 212行（完全重複1行を除去）、is_valid_order=1:169 / 0:43（KPI対象/対象外）
+
 - `is_valid_order = 1` 条件（KPI対象）
   - order_id / customer_id が空でない
   - order_date がNULLでなく未来日でない
