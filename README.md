@@ -59,7 +59,7 @@ flowchart TB
   - quantity, unit_price, amount が正（> 0）
   - status = 'PAID'
 
-- `customer_type`
+- `customer_type`（新規/既存）
   - 初回購入月（valid注文前提）= 注文月 → `new`
   - それ以外 → `existing`
 
