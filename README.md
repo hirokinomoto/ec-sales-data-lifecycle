@@ -51,6 +51,18 @@ flowchart TB
 - ドキュメント：`docs/portfolio_01_raw_staging.md`
 - SQL：`sql/01_raw/` `sql/02_staging/`
 
+#### stagingの固定定義（抜粋）
+
+- `is_valid_order = 1` 条件（KPI対象）
+  - order_id / customer_id が空でない
+  - order_date がNULLでなく未来日でない
+  - quantity, unit_price, amount が正（> 0）
+  - status = 'PAID'
+
+- `customer_type`
+  - 初回購入月（valid注文前提）= 注文月 → `new`
+  - それ以外 → `existing`
+
 ### #2 KPI集計・検算（mart）
 - 目的：月次KPIを再現可能に作成し、検算と定義の明確化を示す
 - 成果物：mart設計、月次KPI SQL、カテゴリ別KPI SQL、検算観点
