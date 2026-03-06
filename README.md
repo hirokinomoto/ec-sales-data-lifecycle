@@ -1,6 +1,7 @@
+
 # EC Sales Data Lifecycle Project
 
-EC売上データ（架空）を使って、入社〜1年目レベルのデータ職（データアナリスト／データエンジニア）が行う **実務フロー（raw → staging → mart → BI）** を再現するポートフォリオです。  
+EC売上データ（架空）を使って、入社〜1年目レベルのデータ職（データアナリスト／データエンジニア）が行う **実務フロー（raw → staging → mart → BI）** を再現するポートフォリオです。
 「分析結果を断言する」よりも、**分析できる状態を作る（設計・整形・品質・再現性）** ことを重視しています。
 
 ---
@@ -56,22 +57,50 @@ flowchart TB
 > 実行結果サマリ：raw 213行 → staging 212行（完全重複1行を除去）、is_valid_order=1:169 / 0:43（KPI対象/対象外）
 
 - `is_valid_order = 1` 条件（KPI対象）
+
   - order_id / customer_id が空でない
   - order_date がNULLでなく未来日でない
   - quantity, unit_price, amount が正（> 0）
   - status = 'PAID'
-
 - `customer_type`（新規/既存）
+
   - 初回購入月（valid注文前提）= 注文月 → `new`
   - それ以外 → `existing`
 
+---
+
 ### #2 KPI集計・検算（mart）
-- 目的：月次KPIを再現可能に作成し、検算と定義の明確化を示す
-- 成果物：mart設計、月次KPI SQL、カテゴリ別KPI SQL、検算観点
-- ドキュメント：`docs/portfolio_02_mart_kpi.md`（作成予定）
+
+- 目的：stagingで整えたデータから、月次KPIを再現可能に作成し、**定義・粒度・集計条件・検算観点**を明確化する（「分析結果の断言」ではなく「分析できる状態」を作る）
+- 入力 / 出力：
+  - input：`ec_sales.orders_stg`
+  - output：`ec_sales.kpi_monthly`
+- ドキュメント：`docs/portfolio_02_mart_kpi.md`
 - SQL：`sql/03_mart/`
 
+#### 最小KPI（定義固定）
+
+- 売上：`SUM(amount)`
+- 注文件数：`COUNT(DISTINCT order_id)` ※明細粒度のためDISTINCT必須
+- 購入者数：`COUNT(DISTINCT customer_id)`
+- AOV：`SAFE_DIVIDE(SUM(amount), COUNT(DISTINCT order_id))`
+- ARPU：`SAFE_DIVIDE(SUM(amount), COUNT(DISTINCT customer_id))`
+
+#### 成果物（SSOT）
+
+- 作成：`sql/03_mart/01_create_kpi_monthly.sql`
+- 検算：`sql/03_mart/02_validate_kpi_monthly.sql`
+- 根拠（DISTINCT確認）：`sql/03_mart/03_validate_distinct_logic.sql`
+
+#### 検算の考え方（要点）
+
+- `orders_stg` は 1行=注文明細のため、注文件数は `COUNT(*)` ではなく `COUNT(DISTINCT order_id)` で算出する
+- 検算SQLで `sales_amount / order_count / customer_count` が一致すること（差分が0）を確認する
+
+---
+
 ### #3 可視化まで整備（BI）
+
 - 目的：「分析する」ではなく「分析できる状態」に整える
 - 成果物：BI用view（任意）、ダッシュボード仕様、最低限のダッシュボード
 - ドキュメント：`docs/portfolio_03_bi_analysis_ready.md`（作成予定）
@@ -110,7 +139,7 @@ flowchart TB
 
 1. raw作成 → CSV取り込み → raw品質チェック
 2. staging生成 → staging品質チェック（is_valid_order / first_purchase_date / customer_type）
-3. mart作成（KPI）
+3. mart作成（KPI）＋検算
 4. Looker Studioで可視化（分析可能状態）
 
 ---
@@ -120,13 +149,15 @@ flowchart TB
 このリポジトリは **BigQuery上でSQLを実行して再現**します（ローカル実行は不要）。
 
 ### 1) データ取り込み（raw）
+
 1. BigQueryでデータセット `ec_sales` を作成
-2. `data/orders_raw.csv` をアップロードして `ec_sales.orders_raw` を作成  
+2. `data/orders_raw.csv` をアップロードして `ec_sales.orders_raw` を作成
    - Source: Upload（CSV）
    - Table: `orders_raw`
    - Schema: Auto-detect
 
 ### 2) #1 raw → staging（品質チェック / 整形 / 定義固定）
+
 以下の順でSQLを実行します（BigQuery Console）。
 
 - `sql/01_raw/01_raw_quality_check.sql`
@@ -136,13 +167,24 @@ flowchart TB
 - `sql/02_staging/03_add_customer_type.sql`
 
 **出力テーブル**
+
 - `ec_sales.orders_raw`（raw）
 - `ec_sales.orders_stg`（staging：is_valid_order / first_purchase_date / customer_type を保持）
 
-### 3) #2 mart（作成予定）
-`sql/03_mart/` に月次KPI・カテゴリ別KPIを追加予定。
+### 3) #2 mart（KPI作成・検算）
+
+以下の順でSQLを実行します（BigQuery Console）。
+
+- `sql/03_mart/01_create_kpi_monthly.sql`（`ec_sales.kpi_monthly` を作成）
+- `sql/03_mart/02_validate_kpi_monthly.sql`（検算：staging再集計 vs mart）
+- `sql/03_mart/03_validate_distinct_logic.sql`（根拠：COUNT(*) と COUNT(DISTINCT) の差を確認）
+
+**出力テーブル**
+
+- `ec_sales.kpi_monthly`（mart：月次KPI）
 
 ### 4) #3 BI（作成予定）
+
 Looker Studioで「分析できる状態」に整えるダッシュボードを追加予定。
 
 ---
