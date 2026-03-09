@@ -187,6 +187,9 @@ flowchart TB
 
 Looker Studioで「分析できる状態」に整えるダッシュボードを追加予定。
 
+BI用 view：v_kpi_monthly, v_kpi_monthly_by_category
+SQL：sql/04_analysis_ready/
+
 ---
 
 ## 補足
