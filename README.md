@@ -1,14 +1,15 @@
-
 # EC Sales Data Lifecycle Project
 
-EC売上データ（架空）を使って、入社〜1年目レベルのデータ職（データアナリスト／データエンジニア）が行う **実務フロー（raw → staging → mart → BI）** を再現するポートフォリオです。
-「分析結果を断言する」よりも、**分析できる状態を作る（設計・整形・品質・再現性）** ことを重視しています。
+EC売上データ（架空）を使って、入社〜1年目レベルのデータ職（データアナリスト／データエンジニア）が行う **実務フロー（raw → staging → mart → BI）** を再現するポートフォリオです。  
+単純に「SQLが書ける／ツールが使える」を示すことよりも、**実務がイメージできない状態から、求人情報を手がかりに業務を分解し、再現可能な形で一連の流れを体験・実装した**点を重視しています。  
+（分析結果の断言ではなく、**分析できる状態を作る＝設計・整形・品質・再現性**を成果物として残します）
 
 ---
 
 ## 目的
 
-- 実務フロー（raw → staging → mart → BI）を再現し、業務理解を示す
+- **実務フロー（raw → staging → mart → BI）を体験し、業務理解を示す**
+- 「実務がイメージできない」という課題に対し、**求人に基づく業務情報の調査 → 作業の分解 → ポートフォリオで再現**というアプローチを取る
 - SQLによる整形・集計能力の証明（主目的の次点）
 - データ品質設計（事故検知・監視・定義固定）の理解
 - 「分析できる状態」を作る（架空データのため施策の正解は断言しない）
@@ -57,13 +58,11 @@ flowchart TB
 > 実行結果サマリ：raw 213行 → staging 212行（完全重複1行を除去）、is_valid_order=1:169 / 0:43（KPI対象/対象外）
 
 - `is_valid_order = 1` 条件（KPI対象）
-
   - order_id / customer_id が空でない
   - order_date がNULLでなく未来日でない
   - quantity, unit_price, amount が正（> 0）
   - status = 'PAID'
 - `customer_type`（新規/既存）
-
   - 初回購入月（valid注文前提）= 注文月 → `new`
   - それ以外 → `existing`
 
@@ -74,7 +73,7 @@ flowchart TB
 - 目的：stagingで整えたデータから、月次KPIを再現可能に作成し、**定義・粒度・集計条件・検算観点**を明確化する（「分析結果の断言」ではなく「分析できる状態」を作る）
 - 入力 / 出力：
   - input：`ec_sales.orders_stg`
-  - output：`ec_sales.kpi_monthly`
+  - output：`ec_sales.kpi_monthly` / `ec_sales.kpi_monthly_by_category`
 - ドキュメント：`docs/portfolio_02_mart_kpi.md`
 - SQL：`sql/03_mart/`
 
@@ -88,23 +87,40 @@ flowchart TB
 
 #### 成果物（SSOT）
 
-- 作成：`sql/03_mart/01_create_kpi_monthly.sql`
-- 検算：`sql/03_mart/02_validate_kpi_monthly.sql`
-- 根拠（DISTINCT確認）：`sql/03_mart/03_validate_distinct_logic.sql`
+- 月次KPI
+  - 作成：`sql/03_mart/01_create_kpi_monthly.sql`
+  - 検算：`sql/03_mart/02_validate_kpi_monthly.sql`
+  - 根拠（DISTINCT確認）：`sql/03_mart/03_validate_distinct_logic.sql`
+- カテゴリ別KPI（拡張）
+  - 作成：`sql/03_mart/04_create_kpi_monthly_by_category.sql`
+  - 確認：`sql/03_mart/05_check_kpi_monthly_by_category.sql`
+  - 検算（売上合算）：`sql/03_mart/06_validate_kpi_monthly_by_category.sql`
 
 #### 検算の考え方（要点）
 
 - `orders_stg` は 1行=注文明細のため、注文件数は `COUNT(*)` ではなく `COUNT(DISTINCT order_id)` で算出する
 - 検算SQLで `sales_amount / order_count / customer_count` が一致すること（差分が0）を確認する
+- カテゴリ別KPIは「カテゴリ内DISTINCT」のため、カテゴリ別の `order_count/customer_count` を合算すると月次全体と一致しない場合がある（同一注文/同一顧客が複数カテゴリにまたがる可能性）
 
 ---
 
 ### #3 可視化まで整備（BI）
 
 - 目的：「分析する」ではなく「分析できる状態」に整える
-- 成果物：BI用view（任意）、ダッシュボード仕様、最低限のダッシュボード
-- ドキュメント：`docs/portfolio_03_bi_analysis_ready.md`（作成予定）
-- 資料：`viz/`
+- 成果物：
+  - BI用 view（analysis-ready）
+  - 最低限のダッシュボード（KPI＋推移＋カテゴリ別＋構成比）
+  - スクリーンショット（提出用）
+- ドキュメント：`docs/portfolio_03_bi_analysis_ready.md`
+- SQL（view作成）：`sql/04_analysis_ready/`
+  - `sql/04_analysis_ready/01_create_view_v_kpi_monthly.sql`
+  - `sql/04_analysis_ready/02_create_view_v_kpi_monthly_by_category.sql`
+- BI用 view：
+  - `ec_sales.v_kpi_monthly`
+  - `ec_sales.v_kpi_monthly_by_category`
+- 資料（スクショ）：`viz/`
+  - `viz/dashboard_overview.png`
+  - `viz/dashboard_month_2025-09.png`
 
 ---
 
@@ -140,7 +156,8 @@ flowchart TB
 1. raw作成 → CSV取り込み → raw品質チェック
 2. staging生成 → staging品質チェック（is_valid_order / first_purchase_date / customer_type）
 3. mart作成（KPI）＋検算
-4. Looker Studioで可視化（分析可能状態）
+4. analysis-ready（BI用 view）作成
+5. Looker Studioで可視化（分析可能状態）
 
 ---
 
@@ -178,17 +195,21 @@ flowchart TB
 - `sql/03_mart/01_create_kpi_monthly.sql`（`ec_sales.kpi_monthly` を作成）
 - `sql/03_mart/02_validate_kpi_monthly.sql`（検算：staging再集計 vs mart）
 - `sql/03_mart/03_validate_distinct_logic.sql`（根拠：COUNT(*) と COUNT(DISTINCT) の差を確認）
+- `sql/03_mart/04_create_kpi_monthly_by_category.sql`（`ec_sales.kpi_monthly_by_category` を作成）
+- `sql/03_mart/06_validate_kpi_monthly_by_category.sql`（検算：カテゴリ別の売上合算が月次売上と一致）
 
 **出力テーブル**
 
 - `ec_sales.kpi_monthly`（mart：月次KPI）
+- `ec_sales.kpi_monthly_by_category`（mart：カテゴリ別KPI）
 
-### 4) #3 BI（作成予定）
+### 4) #3 BI（analysis-ready view + ダッシュボード）
 
-Looker Studioで「分析できる状態」に整えるダッシュボードを追加予定。
+- `sql/04_analysis_ready/01_create_view_v_kpi_monthly.sql`（`ec_sales.v_kpi_monthly`）
+- `sql/04_analysis_ready/02_create_view_v_kpi_monthly_by_category.sql`（`ec_sales.v_kpi_monthly_by_category`）
 
-BI用 view：v_kpi_monthly, v_kpi_monthly_by_category
-SQL：sql/04_analysis_ready/
+Looker Studioで `v_kpi_monthly` / `v_kpi_monthly_by_category` をデータソースとして追加し、ダッシュボードを作成します。  
+提出用スクショは `viz/` に保存しています。
 
 ---
 
